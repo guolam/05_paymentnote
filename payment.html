@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>入金名簿</title>
+  <style>
+    #output li {
+      background: #ccc;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>入金名簿</h1>
+  <!-- 入力場所を作成しよう -->
+  <form method="get" oninput="result.value = Number(a.value) - Number(b.value);">
+    <fieldset>
+      <legend>購入履歴の入力</legend>
+      <div>
+        ご氏名: <input type="text" id="name">
+      </div>
+
+      <div>
+        商品: <input type="text" id="product">
+
+      </div>
+      <div>
+        金額: <input type="number" name="a" value="0" id="price">
+      </div>
+
+      <div>
+        入金:<input type="number" name="b" value="0" id="payment">
+      </div>
+      <div>
+        残金：<output type="number" name="result" id="remain"></output>
+      </div>
+  </form>
+
+
+  <div>
+    備考: <textarea type="text" id="text"></textarea>
+  </div>
+  <div>
+    <button type="button" id="send">send</button>
+  </div>
+  <div>
+    <input type="reset" value="reset">
+  </div>
+  </fieldset>
+  </form>
+
+
+
+  <!-- データ出力場所 -->
+  <ul id="output"></ul>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script>
+    // 日時をいい感じの形式にする関数
+    function convertTimestampToDatetime(timestamp) {
+      const _d = timestamp ? new Date(timestamp * 1000) : new Date();
+      const Y = _d.getFullYear();
+      const m = (_d.getMonth() + 1).toString().padStart(2, '0');
+      const d = _d.getDate().toString().padStart(2, '0');
+      const H = _d.getHours().toString().padStart(2, '0');
+      const i = _d.getMinutes().toString().padStart(2, '0');
+      const s = _d.getSeconds().toString().padStart(2, '0');
+      return `${Y}/${m}/${d} ${H}:${i}:${s}`;
+    }
+  </script>
+  <!-- 以下にfirebaseのコードを貼り付けよう -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.14.0/firebase-app.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp,
+      onSnapshot,
+      query,
+      orderBy,
+      deleteDoc,
+      doc,
+
+    } from "https://www.gstatic.com/firebasejs/9.14.0/firebase-firestore.js";
+
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC02LiWsSmh5mEtT1je35i9Ghlm9K5Mtb8",//GitHubの時は消す
+      authDomain: "payment-f8acc.firebaseapp.com",
+      projectId: "payment-f8acc",
+      storageBucket: "payment-f8acc.appspot.com",
+      messagingSenderId: "233289245634",
+      appId: "1:233289245634:web:70e25e8409c5914bbe6c5b"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);//get the data to database (fromfirestore)
+
+
+
+    $("#send").on("click", function () {
+
+      const postData = {//入れたい値
+        name: $("#name").val(),
+        text: $("#text").val(),
+        product: $("#product").val(),
+        price: $("#price").val(),
+        payment: $("#payment").val(),
+        remain: $("#remain").val(),
+        time: serverTimestamp(),
+      };
+
+      addDoc(collection(db, "chat"), postData);//保存場所：db;chatというcollectionに保存
+      $("text").val("");
+
+    });
+
+
+    const q = query(collection(db, "chat"), orderBy("time", "desc"));//データを取り出して、時間順に並ぶ
+
+    onSnapshot(q, (querySnapshot) => {
+      console.log(querySnapshot.docs);
+
+      const documents = [];
+      querySnapshot.docs.forEach(function (doc) {
+        const document = {
+          id: doc.id,
+          data: doc.data(),
+        };
+        documents.push(document);
+      });
+
+      console.log(documents);
+
+
+
+      const htmlElements = [];
+      documents.forEach(function (document) {
+        htmlElements.push(`
+  <ul id="${document.id}">
+  <p>${document.data.name}` + `さん` + " " + `${document.data.product}を購入` + " " +
+          `<p>金額：${document.data.price}入金：${document.data.payment} </p>
+          <p>残金：(${document.data.remain})</p>
+          <p>備考：${document.data.text}</p>
+            at ${convertTimestampToDatetime(document.data.time.seconds)
+          } <p></p>
+      <button type="button" class="delete"> delete</button></ul >`)
+
+        $("#output").html(htmlElements);
+
+        $(".delete").on("click", function () {
+
+          const element = $(this).parents("ul").attr("id");
+          // const element = $(".delete").parents("ul").attr("id");
+
+          console.log(element);
+          // const deleteid = document.id;
+          const docRef = doc(db, "chat", element);
+
+          deleteDoc(docRef);
+
+
+        });
+      });
+
+
+    });
+
+
+  </script>
+
+</body>
+
+</html>
